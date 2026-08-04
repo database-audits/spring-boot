@@ -139,9 +139,14 @@ assertion API; these ITs show how to wire and call it. They mirror core's three 
 - The JPA example runs under the default `ddl-auto=none`: `SchemaEntityValidationAudit` walks Hibernate's entity
   mappings against the live schema and reports every mismatch in one run, instead of relying on Hibernate's
   fail-fast `ddl-auto=validate` startup check (which aborts on the first mismatch).
-- Most show `EXCLUDED_*` exclusion constants (relations, SQL fragments, columns, indexes, statements) — the
+- Nearly all show `EXCLUDED_*` exclusion constants (relations, SQL fragments, columns, indexes, statements) — the
   intended way for consumers to suppress known/intentional violations instead of weakening the audit.
-  `ForeignKeyIndexAuditIT` and `PrimaryKeyPresenceAuditIT` call the no-exclusion overload directly.
+  `PrimaryKeyPresenceAuditIT`'s `EXCLUDED_TABLES` is seeded with `PrimaryKeyPresenceAudit.LIQUIBASE_BOOKKEEPING_TABLES`
+  rather than empty — the plain no-arg `assertClean(schema)` applies that same default silently, so the constant
+  makes it explicit instead of introducing a footgun where filling it in naively would drop the default. The one
+  IT with no `EXCLUDED_*` constant is `SchemaEntityValidationAuditIT`: it isn't schema/table-scoped at all
+  (`assertClean()` takes no arguments — it walks every mapped entity against the live schema globally), so it calls
+  the no-exclusion overload directly.
 
 The **demo harness** that makes the examples run — `DemoApplication`, `app/*` (entities + repositories +
 `DemoDatabaseTestConfig`), `runtime/RepositoryWorkloadIT`, and `src/test/resources/` (`application.properties` + the Liquibase
