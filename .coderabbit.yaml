@@ -7,7 +7,7 @@ tone_instructions: >-
   do not re-flag it.
 
 reviews:
-  profile: chill                  # few, high-signal comments
+  profile: assertive              # broader, more detailed reviews
   request_changes_workflow: false # solo maintainer — don't self-block merges
   poem: false
   collapse_walkthrough: true
