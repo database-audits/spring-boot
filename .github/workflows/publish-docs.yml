@@ -2,15 +2,17 @@ name: Build and Deploy Maven Site to GitHub Pages
 
 on:
   workflow_dispatch:
+  # zizmor: ignore[dangerous-triggers]
+  # workflow_run is used safely: for that event the build-site job requires a
+  # successful "Build any branch" run from this repository (head_repository
+  # guard) on `main` (branches filter), and checks out exactly that run's commit
+  # (head_sha) — never fork-controlled code.
   workflow_run:
     workflows: ["Build any branch"]
     types: [completed]
     branches: [ main ]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
@@ -22,13 +24,19 @@ env:
 
 jobs:
   build-site:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@v7
       with:
         ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+        persist-credentials: false
     - uses: ./.github/actions/jdk-setup
     # Tests run (no -DskipTests) so JaCoCo writes target/jacoco.exec and target/jacoco-it.exec;
     # the site step renders the unit and integration coverage reports from them.
@@ -39,7 +47,7 @@ jobs:
     # building.adoc documents for local use). The archetype module has no site and no
     # distributionManagement, which is what broke the previous reactor-wide `site site:stage`.
     - name: Generate Maven site (integration module)
-      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site -pl integration -Dproject.build.outputTimestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      run: ${{ env.MAVEN_COMMAND }} ${{ env.MAVEN_CLI_COMMON }} site -pl integration -Dproject.build.outputTimestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     - name: Upload Pages artifact
       uses: actions/upload-pages-artifact@v5
       with:
@@ -49,6 +57,9 @@ jobs:
     needs: build-site
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
